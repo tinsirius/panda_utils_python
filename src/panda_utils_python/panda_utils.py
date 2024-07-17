@@ -68,7 +68,10 @@ class panda_utils:
         result = client.get_result()
         return result.success
 
-    def switch_controller(self, controller_name):
+    def switch_controller(self, controller_names):
+        if not isinstance(controller_names, list):
+            print("controller_names has to be list")
+            return False
         rospy.wait_for_service(self.ns + '/controller_manager/list_controllers')
         try:
             list_client = rospy.ServiceProxy(self.ns + '/controller_manager/list_controllers', ListControllers)
@@ -79,32 +82,33 @@ class panda_utils:
         
         is_loaded = False
         for controller in controllers.controller:
-            if controller_name == controller.name:
+            if controller.name in controller_names:
                 is_loaded = True
         
         if is_loaded:
-            active_controller = ''
+            active_controllers = []
             for controller in controllers.controller:
                 if controller.state == 'running':
                     # I mean I can use any() but there are only 2 so this is more readable, fight me!
                     if ('state' not in controller.name) and ('gripper' not in controller.name):
-                        active_controller = controller.name
-            if active_controller == controller_name:
-                print("robot is already running " + controller_name)
-                return True
+                        active_controllers.append(controller.name)
+            for active_controller in active_controllers:
+                if active_controller in controller_names:
+                    print("robot is already running " + active_controller)
+                    return True
             else:
                 rospy.wait_for_service(self.ns + '/controller_manager/switch_controller')
                 try:
                     switch_client = rospy.ServiceProxy(self.ns + '/controller_manager/switch_controller', SwitchController)
                     switch_object = SwitchControllerRequest()
-                    switch_object.stop_controllers = [active_controller]
-                    switch_object.start_controllers = [controller_name]
+                    switch_object.stop_controllers = active_controllers if active_controllers else ['']
+                    switch_object.start_controllers = controller_names
                     switch_object.strictness = 2
                     switch_object.start_asap = False
                     switch_object.timeout = 0.0
                     result = switch_client(switch_object)
                     if result.ok:
-                        print("Switch to " + controller_name)
+                        print("Switch to " + str(controller_names))
                 except rospy.ServiceException as e:
                     print("Service call failed: %s"%e)
                 return True
