@@ -67,6 +67,58 @@ class panda_utils:
             return False
         result = client.get_result()
         return result.success
+    
+    def unload_controller(self, controller_name):
+        rospy.wait_for_service(self.ns + '/controller_manager/list_controllers')
+        try:
+            list_client = rospy.ServiceProxy(self.ns + '/controller_manager/list_controllers', ListControllers)
+            list_object = ListControllersRequest()
+            controllers = list_client(list_object)
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
+
+        loaded_controller_name = [controller.name for controller in controllers.controller]
+        if controller_name in loaded_controller_name:
+            rospy.wait_for_service(self.ns + '/controller_manager/unload_controller')
+            try:
+                unload_client = rospy.ServiceProxy(self.ns + '/controller_manager/unload_controller', UnloadController)
+                unload_object = UnloadControllerRequest()
+                unload_object.name = controller_name
+                result = unload_client(unload_object)
+                if result.ok:
+                    print("Unloaded " + controller_name)
+            except rospy.ServiceException as e:
+                print("Service call failed: %s"%e)
+                return True
+        else:
+            print("The controller has not been loaded yet")
+            return False
+        
+    def load_controller(self, controller_name):
+        rospy.wait_for_service(self.ns + '/controller_manager/list_controllers')
+        try:
+            list_client = rospy.ServiceProxy(self.ns + '/controller_manager/list_controllers', ListControllers)
+            list_object = ListControllersRequest()
+            controllers = list_client(list_object)
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
+
+        loaded_controller_name = [controller.name for controller in controllers.controller]
+        if controller_name not in loaded_controller_name:
+            rospy.wait_for_service(self.ns + '/controller_manager/load_controller')
+            try:
+                load_client = rospy.ServiceProxy(self.ns + '/controller_manager/load_controller', LoadController)
+                load_object = LoadControllerRequest()
+                load_object.name = controller_name
+                result = load_client(load_object)
+                if result.ok:
+                    print("Loaded " + controller_name)
+            except rospy.ServiceException as e:
+                print("Service call failed: %s"%e)
+                return True
+        else:
+            print("The controller is already loaded")
+            return False
 
     def switch_controller(self, controller_names):
         if not isinstance(controller_names, list):
